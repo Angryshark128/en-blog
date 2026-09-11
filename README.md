@@ -38,7 +38,27 @@ Automated deployment via GitHub Actions (tag-triggered) is planned.
 | `hugo.yaml` | site config (baseURL, theme, taxonomies, params) |
 | `docker-compose.yml` | runtime service (nginx serving `public/`) |
 | `nginx/static.conf` | in-container nginx config (compression, caching, security headers) |
-| `layouts/` | PaperMod overrides, e.g. giscus comments |
+| `layouts/` | PaperMod overrides: `partials/comments.html` (giscus, legacy path), `_partials/extend_head.html` (diagram CSS), `single.html` (post template without the visible description), `_shortcodes/diagram.html` (inline SVG figures) |
+| `assets/diagrams/*.svg` | diagram sources, inlined at build time by the `diagram` shortcode |
+
+## Diagrams
+
+Posts embed a diagram with `{{</* diagram "name.svg" "short caption" */>}}`. The shortcode inlines
+`assets/diagrams/name.svg` instead of linking to it, so the drawing inherits `currentColor` and
+follows the light/dark theme. An `<img>` reference cannot do this: inside an external SVG,
+`currentColor` resolves to the SVG's own default, which disappears on the dark theme.
+
+House style:
+
+- `viewBox` width is always 720, which renders near 1:1 in PaperMod's 720px content column.
+- Text uses `currentColor` with opacity tiers (0.9 / 0.6 / 0.55), so one drawing works on both themes.
+- One accent colour, `#d97706`, and only for strokes and node fills. Never for small text: no single
+  colour clears the contrast bar on both `#fff` and `#1d1e20`.
+- Budget: about 10 words per diagram and a 3-5 word caption. Relationships and flow come from the
+  drawing, not from labels.
+- Below 460px the figure scrolls sideways instead of shrinking the text into illegibility.
+- Before committing a diagram, check that no text overflows its box or the canvas, that text does not
+  overlap other text or node circles, and that the SVG is well-formed XML.
 
 ## Comments
 
