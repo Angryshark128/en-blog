@@ -41,8 +41,9 @@ Automated deployment via GitHub Actions (tag-triggered) is planned.
 | `layouts/` | PaperMod overrides: `partials/comments.html` (giscus, legacy path), `_partials/extend_head.html` (diagram CSS), `single.html` (post template without the visible description), `_shortcodes/diagram.html` (inline SVG figures) |
 | `assets/diagrams/*.svg` | diagram sources, inlined at build time by the `diagram` shortcode |
 | `static/diagrams/*.png` | dev.to copies of those diagrams, colour frozen — generated, see below |
-| `tools/devto_mcp.py` | dev.to publishing MCP server — see below |
+| `tools/devto_mcp.py` | dev.to publishing MCP server — usage in [`tools/README.md`](tools/README.md) |
 | `tools/raster/` | SVG→PNG renderer for those copies (resvg, pinned in `package.json`) |
+| `tools/README.md` | install, MCP registration and tool reference for the two above |
 
 ## Diagrams
 
@@ -69,29 +70,13 @@ Giscus (GitHub Discussions), wired in `layouts/partials/comments.html` and enabl
 
 ## dev.to sync
 
-`tools/devto_mcp.py` is an MCP server (stdio) that publishes a post to [dev.to](https://dev.to) through
+Posts are also published to [dev.to](https://dev.to) by `tools/devto_mcp.py`, an MCP server (stdio) over
 the v1 API. It parses the front matter, rewrites relative image paths to `https://en.hancic.site/...`,
 expands the `diagram` shortcode into real images, drops the remaining Hugo shortcodes, and sets
-`canonical_url` so the dev.to copy points back here.
+`canonical_url` so the dev.to copy carries a visible "Originally published at" link back here.
 
-| Tool | Purpose |
-| --- | --- |
-| `sync_post` | Send one post. Draft by default; `publish=true` goes live, `dry_run=true` returns the converted markdown without posting |
-| `bake_diagrams` | Regenerate `static/diagrams/` from `assets/diagrams/` — see below |
-| `list_articles` | List your dev.to articles (published by default, `published=false` for drafts) |
-| `get_article` | Read one article by numeric ID — published only, dev.to does not serve drafts here |
-| `update_article` | Update an existing article; fields you do not pass keep their current value |
-
-- Auth: `DEVTO_API_KEY`, generated at <https://dev.to/settings/extensions> and passed through the MCP
-  server's `env` block (see `~/.kimi-code/mcp.json`)
-- Deps: `mcp[cli]` and `httpx`
-- Tags are lowercased and stripped to alphanumerics, because dev.to answers 422 on anything else:
-  `distributed-systems` in the front matter arrives as `distributedsystems`. Max 4, first wins.
-- `sync_post` reports `diagram_warnings` for any diagram the blog does not serve yet (404) or whose
-  published copy lags `assets/`. An empty list means both are fine.
-- `update_article` with `publish=true` also rewrites the `published` line in the body's front matter,
-  because dev.to lets that line win over the API field: a body still carrying `published: false`
-  would otherwise leave the post a draft and report success anyway.
+Install, MCP registration and the full tool reference live in [`tools/README.md`](tools/README.md);
+the diagram step it depends on is below.
 
 ### Diagrams on dev.to
 
@@ -109,17 +94,12 @@ The white card is deliberate: dark ink on a transparent background would be invi
 dev.to's dark theme, while dark ink on white stays readable on both (it just reads as a card on dark).
 
 The build host has no fonts and no cairo/rsvg/inkscape, so rendering goes through
-[resvg](https://github.com/thx/resvg-js) as a pinned npm dependency, and the Inter faces it needs are
-fetched into `tools/raster/fonts/` on the first bake. One-time setup, then `bake_diagrams` after
-adding or editing a diagram, then deploy — those URLs are what dev.to fetches. The generated PNGs are
-committed so a fresh clone still deploys them.
+[resvg](https://github.com/thx/resvg-js) as a pinned npm dependency (see
+[`tools/README.md`](tools/README.md) for the one-time setup). Then `bake_diagrams` after adding or
+editing a diagram, then deploy — those URLs are what dev.to fetches. The generated PNGs are committed
+so a fresh clone still deploys them.
 
-Once a post is published, dev.to copies each image onto its own `dev-to-uploads.s3.amazonaws.com`
-storage and serves it from there, so the published copy no longer depends on this site staying up.
-The flip side: re-baking a diagram does not retroactively change an image on an already published
-post, and the PNGs carry no content hash while nginx serves them `immutable` for 30 days, so a
-re-synced diagram may take a while to propagate.
-
-```bash
-npm install --prefix tools/raster   # once
-```
+Note the cache trap: the PNGs carry no content hash, yet nginx serves `png` with
+`Cache-Control: public, immutable` for 30 days. Re-baking a diagram overwrites the same filename, so
+readers and dev.to's proxy can keep serving the old drawing for a while. Adding a content hash to the
+filename is the way out if that ever bites.
