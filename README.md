@@ -73,11 +73,14 @@ drops Hugo shortcodes, and sets `canonical_url` so the dev.to copy points back h
 | Tool | Purpose |
 | --- | --- |
 | `sync_post` | Send one post. Draft by default; `publish=true` goes live, `dry_run=true` returns the converted markdown without posting |
-| `list_articles` | List your dev.to articles (published by default) |
-| `get_article` / `update_article` | Read or update an existing article by numeric ID |
+| `list_articles` | List your dev.to articles (published by default, `published=false` for drafts) |
+| `get_article` | Read one article by numeric ID — published only, dev.to does not serve drafts here |
+| `update_article` | Update an existing article; fields you do not pass keep their current value |
 
 - Auth: `DEVTO_API_KEY`, generated at <https://dev.to/settings/extensions> and passed through the MCP
   server's `env` block (see `~/.kimi-code/mcp.json`)
 - Deps: `mcp[cli]` and `httpx`
+- Tags are lowercased and stripped to alphanumerics, because dev.to answers 422 on anything else:
+  `distributed-systems` in the front matter arrives as `distributedsystems`. Max 4, first wins.
 - Known gap: the `diagram` shortcode used above is stripped, so illustrated posts reach dev.to without
   their figures. Plain Markdown/HTML images are rewritten and survive.

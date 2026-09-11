@@ -111,6 +111,16 @@ def _strip_shortcodes(body: str) -> str:
     return body
 
 
+def _sanitize_tags(tags: list[str]) -> list[str]:
+    """dev.to rejects tags holding anything but lowercase letters and digits."""
+    out = []
+    for tag in tags:
+        clean = re.sub(r"[^a-z0-9]", "", tag.lower())
+        if clean and clean not in out:
+            out.append(clean)
+    return out[:4]
+
+
 # ---------------- Tools ----------------
 
 @mcp.tool(description=(
@@ -138,7 +148,7 @@ def sync_post(
     tags = meta.get("tags", [])
     if isinstance(tags, str):
         tags = [t.strip() for t in tags.split(",") if t.strip()]
-    tags = tags[:4]
+    tags = _sanitize_tags(tags)
 
     devto_body = f"---\ntitle: {title}\npublished: {'true' if publish else 'false'}\n"
     if tags:
@@ -172,15 +182,18 @@ def sync_post(
     }
 
 
-@mcp.tool(description="List your dev.to articles. Default: published. Use per_page (max 1000) and page to paginate.")
+@mcp.tool(description="List your dev.to articles. Default: published. Set published=false for drafts. Use per_page (max 1000) and page to paginate.")
 def list_articles(page: int = 1, per_page: int = 30, published: bool = True) -> list:
     params = {"page": page, "per_page": min(per_page, 1000)}
-    if not published:
-        params["published"] = "false"
-    return _api("GET", "/articles/me", params=params)
+    # dev.to exposes drafts on a separate endpoint; the `published` query param is not honoured.
+    path = "/articles/me/published" if published else "/articles/me/unpublished"
+    return _api("GET", path, params=params)
 
 
-@mcp.tool(description="Get a single dev.to article by its numeric ID. Returns full body_markdown and metadata.")
+@mcp.tool(description=(
+    "Get a single dev.to article by its numeric ID, with full body_markdown. "
+    "Published articles only: drafts are not served by this endpoint, list them instead."
+))
 def get_article(article_id: int) -> dict:
     return _api("GET", f"/articles/{article_id}")
 
