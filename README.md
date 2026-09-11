@@ -63,3 +63,21 @@ House style:
 ## Comments
 
 Giscus (GitHub Discussions), wired in `layouts/partials/comments.html` and enabled site-wide via `params.comments`.
+
+## dev.to sync
+
+`tools/devto_mcp.py` is an MCP server (stdio) that publishes a post to [dev.to](https://dev.to) through
+the v1 API. It parses the front matter, rewrites relative image paths to `https://en.hancic.site/...`,
+drops Hugo shortcodes, and sets `canonical_url` so the dev.to copy points back here.
+
+| Tool | Purpose |
+| --- | --- |
+| `sync_post` | Send one post. Draft by default; `publish=true` goes live, `dry_run=true` returns the converted markdown without posting |
+| `list_articles` | List your dev.to articles (published by default) |
+| `get_article` / `update_article` | Read or update an existing article by numeric ID |
+
+- Auth: `DEVTO_API_KEY`, generated at <https://dev.to/settings/extensions> and passed through the MCP
+  server's `env` block (see `~/.kimi-code/mcp.json`)
+- Deps: `mcp[cli]` and `httpx`
+- Known gap: the `diagram` shortcode used above is stripped, so illustrated posts reach dev.to without
+  their figures. Plain Markdown/HTML images are rewritten and survive.
