@@ -89,6 +89,9 @@ expands the `diagram` shortcode into real images, drops the remaining Hugo short
   `distributed-systems` in the front matter arrives as `distributedsystems`. Max 4, first wins.
 - `sync_post` reports `diagram_warnings` for any diagram the blog does not serve yet (404) or whose
   published copy lags `assets/`. An empty list means both are fine.
+- `update_article` with `publish=true` also rewrites the `published` line in the body's front matter,
+  because dev.to lets that line win over the API field: a body still carrying `published: false`
+  would otherwise leave the post a draft and report success anyway.
 
 ### Diagrams on dev.to
 
@@ -110,6 +113,12 @@ The build host has no fonts and no cairo/rsvg/inkscape, so rendering goes throug
 fetched into `tools/raster/fonts/` on the first bake. One-time setup, then `bake_diagrams` after
 adding or editing a diagram, then deploy — those URLs are what dev.to fetches. The generated PNGs are
 committed so a fresh clone still deploys them.
+
+Once a post is published, dev.to copies each image onto its own `dev-to-uploads.s3.amazonaws.com`
+storage and serves it from there, so the published copy no longer depends on this site staying up.
+The flip side: re-baking a diagram does not retroactively change an image on an already published
+post, and the PNGs carry no content hash while nginx serves them `immutable` for 30 days, so a
+re-synced diagram may take a while to propagate.
 
 ```bash
 npm install --prefix tools/raster   # once

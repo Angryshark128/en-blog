@@ -74,6 +74,22 @@ def _api(method: str, path: str, **kwargs) -> dict | list:
     return resp.json()
 
 
+def _frontmatter_published(body_markdown: str, published: bool) -> str:
+    """Rewrite the body's `published` field. dev.to gives it priority over the API field."""
+    value = "true" if published else "false"
+    if not body_markdown.startswith("---"):
+        return body_markdown
+    parts = body_markdown.split("---", 2)
+    if len(parts) < 3:
+        return body_markdown
+    front, rest = parts[1], parts[2]
+    if re.search(r"(?m)^\s*published:", front):
+        front = re.sub(r"(?m)^(\s*)published:.*$", rf"\g<1>published: {value}", front)
+    else:
+        front = front.rstrip("\n") + f"\npublished: {value}\n"
+    return f"---{front}---{rest}"
+
+
 def _parse_frontmatter(content: str) -> tuple[dict, str]:
     """Split YAML frontmatter from body."""
     if not content.startswith("---"):
@@ -372,7 +388,10 @@ def get_article(article_id: int) -> dict:
 
 @mcp.tool(description=(
     "Update an existing dev.to article. Pass the article ID and new body_markdown. "
-    "Other fields (title, tags, canonical_url, published state) stay unchanged unless you pass them."
+    "Other fields (title, tags, canonical_url, published state) stay unchanged unless you pass them. "
+    "When publish is passed, the body's front matter is rewritten to agree with it: dev.to lets the "
+    "front matter's own `published` win over the API field, so a body carrying `published: false` "
+    "would otherwise silently keep the article a draft."
 ))
 def update_article(
     article_id: int,
@@ -388,6 +407,7 @@ def update_article(
         article["canonical_url"] = canonical_url
     if publish is not None:
         article["published"] = publish
+        article["body_markdown"] = _frontmatter_published(body_markdown, publish)
     result = _api("PUT", f"/articles/{article_id}", json={"article": article})
     return {"success": True, "url": result.get("url", ""), "id": result.get("id")}
 
