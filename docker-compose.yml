@@ -12,6 +12,9 @@ services:
     volumes:
       - ./public:/usr/share/nginx/html:ro
       - ./nginx/static.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+      - nginx_default
     deploy:
       resources:
         limits:
@@ -20,3 +23,8 @@ services:
         reservations:
           cpus: "0.1"
           memory: 32M
+
+# 与同机 my-nginx 共用的反代网络（my-nginx 按容器名 en-blog 直连）
+networks:
+  nginx_default:
+    external: true
