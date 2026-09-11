@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-label="Three replication modes: single-leader, multi-leader, leaderless">
+  <title>Three replication modes: single-leader, multi-leader, leaderless</title>
+  <g stroke-linejoin="round">
+  <rect x="24" y="26" width="216" height="240" rx="12" fill="none" stroke="currentColor" stroke-opacity="0.22" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="132" y="54" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">single-leader</text>
+  <rect x="252" y="26" width="216" height="240" rx="12" fill="none" stroke="currentColor" stroke-opacity="0.22" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="360" y="54" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">multi-leader</text>
+  <rect x="480" y="26" width="216" height="240" rx="12" fill="none" stroke="currentColor" stroke-opacity="0.22" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="588" y="54" font-size="15" fill="currentColor" fill-opacity="0.9" text-anchor="middle" font-weight="600">leaderless</text>
+  <circle cx="132" cy="104" r="15" fill="#d97706" fill-opacity="0.85" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="132" y="80" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">leader</text>
+  <circle cx="86" cy="196" r="14" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <circle cx="178" cy="196" r="14" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <text x="86" y="228" font-size="12" fill="currentColor" fill-opacity="0.55" text-anchor="middle">followers</text>
+  <line x1="42.0" y1="104.0" x2="104.0" y2="104.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M113.0,104.0 L104.0,107.6 L104.0,100.4 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="124.0" y1="116.0" x2="96.0" y2="172.9" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5 4"/>
+  <path d="M92.0,181.0 L92.7,171.3 L99.2,174.5 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="140.0" y1="116.0" x2="168.0" y2="172.9" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5 4"/>
+  <path d="M172.0,181.0 L164.8,174.5 L171.3,171.3 Z" fill="currentColor" fill-opacity="0.5"/>
+  <circle cx="314" cy="104" r="15" fill="#d97706" fill-opacity="0.85" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+  <circle cx="406" cy="104" r="15" fill="#d97706" fill-opacity="0.85" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.5"/>
+  <circle cx="314" cy="196" r="14" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <circle cx="406" cy="196" r="14" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <line x1="331" y1="104" x2="389" y2="104" stroke="#d97706" stroke-opacity="0.42" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="5 4"/>
+  <text x="360" y="158" font-size="12" fill="#d97706" fill-opacity="0.6" text-anchor="middle">conflict</text>
+  <line x1="270.0" y1="104.0" x2="286.0" y2="104.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M295.0,104.0 L286.0,107.6 L286.0,100.4 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="450.0" y1="104.0" x2="434.0" y2="104.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M425.0,104.0 L434.0,100.4 L434.0,107.6 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="314.0" y1="119.0" x2="314.0" y2="172.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5 4"/>
+  <path d="M314.0,181.0 L310.4,172.0 L317.6,172.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="406.0" y1="119.0" x2="406.0" y2="172.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5 4"/>
+  <path d="M406.0,181.0 L402.4,172.0 L409.6,172.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <text x="588" y="92" font-size="13" fill="currentColor" fill-opacity="0.6" text-anchor="middle">any node</text>
+  <circle cx="534" cy="168" r="14" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <circle cx="588" cy="168" r="14" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <circle cx="642" cy="168" r="14" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1.5"/>
+  <line x1="498.0" y1="168.0" x2="507.0" y2="168.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M516.0,168.0 L507.0,171.6 L507.0,164.4 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="678.0" y1="168.0" x2="669.0" y2="168.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M660.0,168.0 L669.0,164.4 L669.0,171.6 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="588.0" y1="128.0" x2="588.0" y2="141.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5 4"/>
+  <path d="M588.0,150.0 L584.4,141.0 L591.6,141.0 Z" fill="currentColor" fill-opacity="0.5"/>
+  <line x1="240.0" y1="286.0" x2="267.0" y2="286.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M276.0,286.0 L267.0,289.6 L267.0,282.4 Z" fill="currentColor" fill-opacity="0.5"/>
+  <text x="284" y="290" font-size="12" fill="currentColor" fill-opacity="0.7" text-anchor="start">write</text>
+  <line x1="378.0" y1="286.0" x2="405.0" y2="286.0" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5 4"/>
+  <path d="M414.0,286.0 L405.0,289.6 L405.0,282.4 Z" fill="currentColor" fill-opacity="0.5"/>
+  <text x="422" y="290" font-size="12" fill="currentColor" fill-opacity="0.7" text-anchor="start">replicate</text>
+  </g>
+</svg>
