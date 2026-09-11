@@ -2,3 +2,6 @@
 public/
 resources/
 .hugo_build.lock
+
+# Python（tools/ 下的 MCP server）
+__pycache__/

@@ -19,6 +19,17 @@ API_KEY = os.environ.get("DEVTO_API_KEY", "")
 BASE_URL = "https://dev.to/api"
 BLOG_URL = "https://en.hancic.site"
 
+# assets/diagrams/*.svg are inlined by the `diagram` shortcode so they can follow the
+# light/dark theme through currentColor. dev.to renders no shortcode and inherits no
+# colour, so a light-theme variant with the colour frozen is published from static/
+# instead, and the dev.to copy points at that URL.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DIAGRAM_SRC = os.path.join(REPO_ROOT, "assets", "diagrams")
+DIAGRAM_OUT = os.path.join(REPO_ROOT, "static", "diagrams")
+DIAGRAM_URL = f"{BLOG_URL}/diagrams"
+INK = "#1e1e1e"
+PAPER = "#ffffff"
+
 mcp = FastMCP("devto")
 
 
@@ -121,13 +132,92 @@ def _sanitize_tags(tags: list[str]) -> list[str]:
     return out[:4]
 
 
+def _convert_diagrams(body: str) -> str:
+    """Expand the `diagram` shortcode into an image the blog serves."""
+    def repl(match):
+        src, caption = match.group(1), (match.group(2) or "").strip()
+        image = f"![{caption}]({DIAGRAM_URL}/{src})"
+        return f"{image}\n\n*{caption}*" if caption else image
+    return re.sub(r'\{\{<\s*diagram\s+"([^"]+)"\s*(?:"([^"]*)")?\s*>\}\}', repl, body)
+
+
+def _bake_svg(svg: str) -> str:
+    """Freeze currentColor to a fixed ink and lay a white card behind the drawing."""
+    box = re.search(r'viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"', svg)
+    if not box:
+        raise ValueError("viewBox missing")
+    width, height = box.groups()
+    card = f'<rect x="0" y="0" width="{width}" height="{height}" fill="{PAPER}"/>'
+    svg = re.sub(r'(<svg\b[^>]*>)', lambda m: f"{m.group(1)}\n  {card}", svg, count=1)
+    return svg.replace("currentColor", INK)
+
+
+def _diagram_warnings(names: list[str]) -> list[str]:
+    """Complain about diagrams the post references: not served yet, or baked stale."""
+    warnings = []
+    for name in names:
+        url = f"{DIAGRAM_URL}/{name}"
+        try:
+            resp = httpx.head(url, timeout=10, follow_redirects=True)
+            if resp.status_code >= 400:
+                warnings.append(f"{url} -> HTTP {resp.status_code}")
+        except httpx.HTTPError as exc:
+            warnings.append(f"{url} -> unreachable ({exc.__class__.__name__})")
+        stale = _stale_diagram(name)
+        if stale:
+            warnings.append(f"{url} -> {stale}")
+    return warnings
+
+
+def _stale_diagram(name: str) -> str:
+    """Why the published copy of a diagram no longer matches assets/, if it does not."""
+    src = os.path.join(DIAGRAM_SRC, name)
+    if not os.path.exists(src):
+        return ""
+    try:
+        with open(src, encoding="utf-8") as f:
+            fresh = _bake_svg(f.read())
+    except (OSError, ValueError) as exc:
+        return f"cannot bake ({exc})"
+    target = os.path.join(DIAGRAM_OUT, name)
+    current = ""
+    if os.path.exists(target):
+        with open(target, encoding="utf-8") as f:
+            current = f.read()
+    if fresh != current:
+        return "static copy is stale, re-run bake_diagrams"
+    return ""
+
+
 # ---------------- Tools ----------------
 
 @mcp.tool(description=(
+    "Bake a dev.to-friendly copy of every assets/diagrams/*.svg into static/diagrams/, "
+    "freezing currentColor to a fixed ink on a white card, because dev.to cannot follow the "
+    "blog's light/dark theming through currentColor. Run this after adding or editing a "
+    "diagram, then deploy the site so the URLs exist."
+))
+def bake_diagrams() -> dict:
+    baked = []
+    for name in sorted(os.listdir(DIAGRAM_SRC)):
+        if not name.endswith(".svg"):
+            continue
+        with open(os.path.join(DIAGRAM_SRC, name), encoding="utf-8") as f:
+            out = _bake_svg(f.read())
+        os.makedirs(DIAGRAM_OUT, exist_ok=True)
+        target = os.path.join(DIAGRAM_OUT, name)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(out)
+        baked.append({"file": os.path.relpath(target, REPO_ROOT), "url": f"{DIAGRAM_URL}/{name}"})
+    return {"baked": len(baked), "diagrams": baked}
+
+@mcp.tool(description=(
     "Sync a Hugo markdown post to dev.to. Converts relative image paths to absolute URLs "
-    "(https://en.hancic.site/...), strips Hugo shortcodes, adds canonical_url pointing to your blog. "
+    "(https://en.hancic.site/...), turns the diagram shortcode into images hosted on the blog, "
+    "strips the remaining Hugo shortcodes, adds canonical_url pointing to your blog. "
     "Default: creates a draft. Set publish=true to publish immediately. "
-    "Set dry_run=true to preview the converted markdown without posting."
+    "Set dry_run=true to preview the converted markdown without posting. "
+    "Either way it warns about diagram URLs the blog does not serve yet."
 ))
 def sync_post(
     file_path: str,
@@ -138,8 +228,13 @@ def sync_post(
         content = f.read()
 
     meta, body = _parse_frontmatter(content)
+    body = _convert_diagrams(body)
     body = _strip_shortcodes(body)
     body = _convert_images(body, BLOG_URL)
+
+    diagrams = sorted({os.path.basename(u) for u in re.findall(
+        rf'!\[[^\]]*\]\(({re.escape(DIAGRAM_URL)}/[^)\s]+)\)', body)})
+    warnings = _diagram_warnings(diagrams)
 
     slug = meta.get("slug", "")
     canonical = f"{BLOG_URL}/{slug}/" if slug else BLOG_URL
@@ -162,6 +257,8 @@ def sync_post(
             "tags": tags,
             "canonical_url": canonical,
             "publish": publish,
+            "diagrams": diagrams,
+            "diagram_warnings": warnings,
             "body_markdown": devto_body,
         }
 
@@ -179,6 +276,8 @@ def sync_post(
         "published": publish,
         "canonical_url": canonical,
         "tags": tags,
+        "diagrams": diagrams,
+        "diagram_warnings": warnings,
     }
 
 

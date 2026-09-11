@@ -40,6 +40,8 @@ Automated deployment via GitHub Actions (tag-triggered) is planned.
 | `nginx/static.conf` | in-container nginx config (compression, caching, security headers) |
 | `layouts/` | PaperMod overrides: `partials/comments.html` (giscus, legacy path), `_partials/extend_head.html` (diagram CSS), `single.html` (post template without the visible description), `_shortcodes/diagram.html` (inline SVG figures) |
 | `assets/diagrams/*.svg` | diagram sources, inlined at build time by the `diagram` shortcode |
+| `static/diagrams/*.svg` | dev.to copies of those diagrams, colour frozen — generated, see below |
+| `tools/devto_mcp.py` | dev.to publishing MCP server — see below |
 
 ## Diagrams
 
@@ -68,11 +70,13 @@ Giscus (GitHub Discussions), wired in `layouts/partials/comments.html` and enabl
 
 `tools/devto_mcp.py` is an MCP server (stdio) that publishes a post to [dev.to](https://dev.to) through
 the v1 API. It parses the front matter, rewrites relative image paths to `https://en.hancic.site/...`,
-drops Hugo shortcodes, and sets `canonical_url` so the dev.to copy points back here.
+expands the `diagram` shortcode into real images, drops the remaining Hugo shortcodes, and sets
+`canonical_url` so the dev.to copy points back here.
 
 | Tool | Purpose |
 | --- | --- |
 | `sync_post` | Send one post. Draft by default; `publish=true` goes live, `dry_run=true` returns the converted markdown without posting |
+| `bake_diagrams` | Regenerate `static/diagrams/` from `assets/diagrams/` — see below |
 | `list_articles` | List your dev.to articles (published by default, `published=false` for drafts) |
 | `get_article` | Read one article by numeric ID — published only, dev.to does not serve drafts here |
 | `update_article` | Update an existing article; fields you do not pass keep their current value |
@@ -82,5 +86,19 @@ drops Hugo shortcodes, and sets `canonical_url` so the dev.to copy points back h
 - Deps: `mcp[cli]` and `httpx`
 - Tags are lowercased and stripped to alphanumerics, because dev.to answers 422 on anything else:
   `distributed-systems` in the front matter arrives as `distributedsystems`. Max 4, first wins.
-- Known gap: the `diagram` shortcode used above is stripped, so illustrated posts reach dev.to without
-  their figures. Plain Markdown/HTML images are rewritten and survive.
+- `sync_post` reports `diagram_warnings` for any diagram the blog does not serve yet (404) or whose
+  published copy lags `assets/`. An empty list means both are fine.
+
+### Diagrams on dev.to
+
+dev.to renders no shortcode and inherits no `currentColor`, so the theme-adaptive trick above does not
+survive there. `bake_diagrams` writes a second copy of each diagram into `static/diagrams/` with the
+colour frozen to `#1e1e1e` on a white card, and `sync_post` turns
+`{{</* diagram "name.svg" "caption" */>}}` into `![caption](https://en.hancic.site/diagrams/name.svg)`
+plus an italic caption.
+
+The white card is deliberate: dark ink on a transparent background would be invisible to readers on
+dev.to's dark theme, while dark ink on white stays readable on both (it just reads as a card on dark).
+
+Run `bake_diagrams` after adding or editing a diagram, then deploy, because the URLs are the ones
+dev.to will fetch. The generated copies are committed so that a fresh clone still deploys them.
