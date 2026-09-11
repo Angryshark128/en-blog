@@ -24,6 +24,7 @@ params:
   ShowCodeCopyButtons: true
   ShowPostNavLinks: true
   ShowShareButtons: false
+  comments: true
   mainSections: ["posts"]
   homeInfoParams:
     Title: "Hancic Tech Blog"
@@ -48,6 +49,10 @@ menu:
       name: Archives
       url: /archives/
       weight: 30
+    - identifier: about
+      name: About
+      url: /about/
+      weight: 40
 
 markup:
   highlight:
