@@ -1,0 +1,57 @@
+baseURL: "https://en.hancic.site/"
+title: "Hancic Tech Blog"
+languageCode: en-us
+theme: PaperMod
+enableRobotsTXT: true
+pagination:
+  pagerSize: 10
+
+permalinks:
+  posts: "/:slug/"
+
+taxonomies:
+  category: categories
+  tag: tags
+
+params:
+  description: "Engineering notes on distributed systems, trading systems, and pragmatic software development."
+  DateFormat: "2006-01-02"
+  defaultTheme: auto
+  disableThemeToggle: false
+  ShowReadingTime: true
+  ShowWordCount: true
+  ShowBreadCrumbs: true
+  ShowCodeCopyButtons: true
+  ShowPostNavLinks: true
+  ShowShareButtons: false
+  mainSections: ["posts"]
+  homeInfoParams:
+    Title: "Hancic Tech Blog"
+    Content: |
+      I write about distributed systems, trading systems, and pragmatic software engineering.
+      Originally published on my own site; this is the canonical source.
+  socialIcons:
+    - name: github
+      url: "https://github.com/Angryshark128"
+
+menu:
+  main:
+    - identifier: posts
+      name: Posts
+      url: /posts/
+      weight: 10
+    - identifier: tags
+      name: Tags
+      url: /tags/
+      weight: 20
+    - identifier: archives
+      name: Archives
+      url: /archives/
+      weight: 30
+
+markup:
+  highlight:
+    noClasses: false
+    style: github
+    lineNos: true
+    codeFences: true
