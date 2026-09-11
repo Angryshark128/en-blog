@@ -21,7 +21,7 @@ and the occasional opinion on tooling. The Chinese blog lives at
 ## Elsewhere
 
 - GitHub: [github.com/Angryshark128](https://github.com/Angryshark128)
-- Email: [li@hancic.site](mailto:li@hancic.site)
+- Email: [angryshark708@gmail.com](mailto:angryshark708@gmail.com)
 
 ## Off the keyboard
 
