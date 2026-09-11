@@ -5,3 +5,7 @@ resources/
 
 # Python（tools/ 下的 MCP server）
 __pycache__/
+
+# dev.to 光栅化依赖：node_modules 由 npm install 还原，字体由 bake 时自动拉取
+tools/raster/node_modules/
+tools/raster/fonts/

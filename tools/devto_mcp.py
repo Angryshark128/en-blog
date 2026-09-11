@@ -9,6 +9,9 @@
 import os
 import re
 import json
+import shutil
+import subprocess
+import tempfile
 import urllib.request
 import urllib.error
 
@@ -20,15 +23,26 @@ BASE_URL = "https://dev.to/api"
 BLOG_URL = "https://en.hancic.site"
 
 # assets/diagrams/*.svg are inlined by the `diagram` shortcode so they can follow the
-# light/dark theme through currentColor. dev.to renders no shortcode and inherits no
-# colour, so a light-theme variant with the colour frozen is published from static/
-# instead, and the dev.to copy points at that URL.
+# light/dark theme through currentColor. dev.to can do neither: it renders no shortcode,
+# and it proxies every external image through an imgproxy that hands the reader SVG bytes
+# labelled "image/webp". So a PNG variant with the colour frozen and a white card behind
+# it is published from static/, and the dev.to copy points at that URL.
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIAGRAM_SRC = os.path.join(REPO_ROOT, "assets", "diagrams")
 DIAGRAM_OUT = os.path.join(REPO_ROOT, "static", "diagrams")
 DIAGRAM_URL = f"{BLOG_URL}/diagrams"
 INK = "#1e1e1e"
 PAPER = "#ffffff"
+
+# Rasteriser. The build host has no fonts and no cairo/rsvg/inkscape, so resvg ships as a
+# pinned npm dependency (tools/raster) and the faces are fetched on first bake.
+RASTER_DIR = os.path.join(REPO_ROOT, "tools", "raster")
+RENDER_JS = os.path.join(RASTER_DIR, "render.mjs")
+FONT_DIR = os.path.join(RASTER_DIR, "fonts")
+FONT_VERSION = "0.4.2"
+FONT_FILES = ("Inter_400Regular.ttf", "Inter_600SemiBold.ttf")
+FONT_URL = ("https://cdn.jsdelivr.net/npm/@expo-google-fonts/inter@{v}/{w}/{n}.ttf")
+RASTER_ZOOM = 2  # the blog shows them at 720 CSS px, so 2x matches a retina screen
 
 mcp = FastMCP("devto")
 
@@ -132,11 +146,17 @@ def _sanitize_tags(tags: list[str]) -> list[str]:
     return out[:4]
 
 
+def _devto_name(source_name: str) -> str:
+    """three-problems.svg -> three-problems.png (the name dev.to fetches)."""
+    stem = source_name[:-4] if source_name.endswith(".svg") else source_name
+    return f"{stem}.png"
+
+
 def _convert_diagrams(body: str) -> str:
     """Expand the `diagram` shortcode into an image the blog serves."""
     def repl(match):
         src, caption = match.group(1), (match.group(2) or "").strip()
-        image = f"![{caption}]({DIAGRAM_URL}/{src})"
+        image = f"![{caption}]({DIAGRAM_URL}/{_devto_name(src)})"
         return f"{image}\n\n*{caption}*" if caption else image
     return re.sub(r'\{\{<\s*diagram\s+"([^"]+)"\s*(?:"([^"]*)")?\s*>\}\}', repl, body)
 
@@ -150,6 +170,54 @@ def _bake_svg(svg: str) -> str:
     card = f'<rect x="0" y="0" width="{width}" height="{height}" fill="{PAPER}"/>'
     svg = re.sub(r'(<svg\b[^>]*>)', lambda m: f"{m.group(1)}\n  {card}", svg, count=1)
     return svg.replace("currentColor", INK)
+
+
+def _ensure_fonts() -> None:
+    """Fetch the two Inter faces on first use. resvg draws no text without them."""
+    os.makedirs(FONT_DIR, exist_ok=True)
+    for name in FONT_FILES:
+        path = os.path.join(FONT_DIR, name)
+        if os.path.exists(path) and open(path, "rb").read(4) == b"\x00\x01\x00\x00":
+            continue
+        weight = "400Regular" if "400" in name else "600SemiBold"
+        url = FONT_URL.format(v=FONT_VERSION, w=weight, n=name[:-4])
+        try:
+            with urllib.request.urlopen(url, timeout=60) as resp, open(path, "wb") as f:
+                shutil.copyfileobj(resp, f)
+        except (urllib.error.URLError, OSError) as exc:
+            raise RuntimeError(f"cannot fetch {name} from {url}: {exc}") from exc
+        if open(path, "rb").read(4) != b"\x00\x01\x00\x00":
+            os.remove(path)
+            raise RuntimeError(f"{url} did not return a TrueType font")
+
+
+def _rasterise(svg: str, out_path: str) -> tuple[int, int]:
+    """Render baked SVG to PNG and return its pixel size."""
+    if shutil.which("node") is None:
+        raise RuntimeError("node not found; install it to bake diagrams")
+    if not os.path.isdir(os.path.join(RASTER_DIR, "node_modules", "@resvg")):
+        raise RuntimeError(f"run `npm install` in {RASTER_DIR} first")
+    _ensure_fonts()
+    with tempfile.TemporaryDirectory() as tmp:
+        source = os.path.join(tmp, "in.svg")
+        with open(source, "w", encoding="utf-8") as f:
+            f.write(svg)
+        proc = subprocess.run(
+            ["node", RENDER_JS, source, out_path, str(RASTER_ZOOM)],
+            cwd=RASTER_DIR, capture_output=True, text=True, timeout=120,
+        )
+    if proc.returncode != 0:
+        raise RuntimeError(f"resvg failed: {proc.stderr.strip()[:300]}")
+    return _png_size(out_path)
+
+
+def _png_size(path: str) -> tuple[int, int]:
+    """Width and height from the PNG IHDR chunk."""
+    with open(path, "rb") as f:
+        head = f.read(24)
+    if head[:8] != b"\x89PNG\r\n\x1a\n":
+        raise RuntimeError(f"{path} is not a PNG")
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
 
 
 def _diagram_warnings(names: list[str]) -> list[str]:
@@ -171,45 +239,50 @@ def _diagram_warnings(names: list[str]) -> list[str]:
 
 def _stale_diagram(name: str) -> str:
     """Why the published copy of a diagram no longer matches assets/, if it does not."""
-    src = os.path.join(DIAGRAM_SRC, name)
-    if not os.path.exists(src):
+    source = os.path.join(DIAGRAM_SRC, name[:-4] + ".svg")
+    if not os.path.exists(source):
         return ""
-    try:
-        with open(src, encoding="utf-8") as f:
-            fresh = _bake_svg(f.read())
-    except (OSError, ValueError) as exc:
-        return f"cannot bake ({exc})"
     target = os.path.join(DIAGRAM_OUT, name)
-    current = ""
-    if os.path.exists(target):
-        with open(target, encoding="utf-8") as f:
-            current = f.read()
-    if fresh != current:
-        return "static copy is stale, re-run bake_diagrams"
+    if not os.path.exists(target):
+        return "not baked yet, run bake_diagrams"
+    if os.path.getmtime(source) > os.path.getmtime(target):
+        return "static copy is older than assets/, re-run bake_diagrams"
     return ""
 
 
 # ---------------- Tools ----------------
 
 @mcp.tool(description=(
-    "Bake a dev.to-friendly copy of every assets/diagrams/*.svg into static/diagrams/, "
-    "freezing currentColor to a fixed ink on a white card, because dev.to cannot follow the "
-    "blog's light/dark theming through currentColor. Run this after adding or editing a "
-    "diagram, then deploy the site so the URLs exist."
+    "Bake a dev.to-friendly PNG of every assets/diagrams/*.svg into static/diagrams/, with "
+    "currentColor frozen to a fixed ink on a white card. Needed because dev.to neither renders "
+    "the shortcode nor inherits the blog's theming, and because its image proxy cannot rasterise "
+    "SVG. Run this after adding or editing a diagram, then deploy the site so the URLs exist. "
+    "Orphans left by a renamed diagram are removed; the first run installs nothing but does "
+    "fetch the bundled Inter faces."
 ))
 def bake_diagrams() -> dict:
-    baked = []
+    os.makedirs(DIAGRAM_OUT, exist_ok=True)
+    baked, wanted = [], set()
     for name in sorted(os.listdir(DIAGRAM_SRC)):
         if not name.endswith(".svg"):
             continue
+        target_name = _devto_name(name)
+        wanted.add(target_name)
         with open(os.path.join(DIAGRAM_SRC, name), encoding="utf-8") as f:
             out = _bake_svg(f.read())
-        os.makedirs(DIAGRAM_OUT, exist_ok=True)
-        target = os.path.join(DIAGRAM_OUT, name)
-        with open(target, "w", encoding="utf-8") as f:
-            f.write(out)
-        baked.append({"file": os.path.relpath(target, REPO_ROOT), "url": f"{DIAGRAM_URL}/{name}"})
-    return {"baked": len(baked), "diagrams": baked}
+        target = os.path.join(DIAGRAM_OUT, target_name)
+        width, height = _rasterise(out, target)
+        baked.append({
+            "file": os.path.relpath(target, REPO_ROOT),
+            "url": f"{DIAGRAM_URL}/{target_name}",
+            "pixels": f"{width}x{height}",
+        })
+    removed = []
+    for stale in sorted(os.listdir(DIAGRAM_OUT)):
+        if stale.endswith(".svg") or stale not in wanted:
+            os.remove(os.path.join(DIAGRAM_OUT, stale))
+            removed.append(stale)
+    return {"baked": len(baked), "diagrams": baked, "removed": removed}
 
 @mcp.tool(description=(
     "Sync a Hugo markdown post to dev.to. Converts relative image paths to absolute URLs "

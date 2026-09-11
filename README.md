@@ -40,8 +40,9 @@ Automated deployment via GitHub Actions (tag-triggered) is planned.
 | `nginx/static.conf` | in-container nginx config (compression, caching, security headers) |
 | `layouts/` | PaperMod overrides: `partials/comments.html` (giscus, legacy path), `_partials/extend_head.html` (diagram CSS), `single.html` (post template without the visible description), `_shortcodes/diagram.html` (inline SVG figures) |
 | `assets/diagrams/*.svg` | diagram sources, inlined at build time by the `diagram` shortcode |
-| `static/diagrams/*.svg` | dev.to copies of those diagrams, colour frozen — generated, see below |
+| `static/diagrams/*.png` | dev.to copies of those diagrams, colour frozen — generated, see below |
 | `tools/devto_mcp.py` | dev.to publishing MCP server — see below |
+| `tools/raster/` | SVG→PNG renderer for those copies (resvg, pinned in `package.json`) |
 
 ## Diagrams
 
@@ -91,14 +92,25 @@ expands the `diagram` shortcode into real images, drops the remaining Hugo short
 
 ### Diagrams on dev.to
 
-dev.to renders no shortcode and inherits no `currentColor`, so the theme-adaptive trick above does not
-survive there. `bake_diagrams` writes a second copy of each diagram into `static/diagrams/` with the
-colour frozen to `#1e1e1e` on a white card, and `sync_post` turns
-`{{</* diagram "name.svg" "caption" */>}}` into `![caption](https://en.hancic.site/diagrams/name.svg)`
+Two things break there. dev.to renders no shortcode and inherits no `currentColor`, so the
+theme-adaptive trick above does not survive. And dev.to proxies every external image through its own
+imgproxy, which cannot rasterise SVG: it hands the reader the SVG bytes labelled `image/webp`, so the
+request is a 200 but the browser shows nothing.
+
+So `bake_diagrams` renders each diagram to a PNG in `static/diagrams/` — colour frozen to `#1e1e1e`
+on a white card, at 2x (1440px wide, matching a retina screen). `sync_post` turns
+`{{</* diagram "name.svg" "caption" */>}}` into `![caption](https://en.hancic.site/diagrams/name.png)`
 plus an italic caption.
 
 The white card is deliberate: dark ink on a transparent background would be invisible to readers on
 dev.to's dark theme, while dark ink on white stays readable on both (it just reads as a card on dark).
 
-Run `bake_diagrams` after adding or editing a diagram, then deploy, because the URLs are the ones
-dev.to will fetch. The generated copies are committed so that a fresh clone still deploys them.
+The build host has no fonts and no cairo/rsvg/inkscape, so rendering goes through
+[resvg](https://github.com/thx/resvg-js) as a pinned npm dependency, and the Inter faces it needs are
+fetched into `tools/raster/fonts/` on the first bake. One-time setup, then `bake_diagrams` after
+adding or editing a diagram, then deploy — those URLs are what dev.to fetches. The generated PNGs are
+committed so a fresh clone still deploys them.
+
+```bash
+npm install --prefix tools/raster   # once
+```
